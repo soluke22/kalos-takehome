@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("member")
+  memberId     String?  @unique
+  member       Member?  @relation(fields: [memberId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Member {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  goalSummary String?
+  scans       Scan[]
+  user        User?
+  createdAt   DateTime @default(now())
+}
+
+model Scan {
+  id             String   @id @default(cuid())
+  memberId       String
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  scanDate       DateTime
+  weightLbs      Float
+  bodyFatPct     Float
+  leanMassLbs    Float
+  fatMassLbs     Float
+  visceralFatLbs Float?
+  bmr            Int?
+  sourceFileName String?
+  createdAt      DateTime @default(now())
+
+  @@index([memberId, scanDate])
+}
+

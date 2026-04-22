@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kalos Take-Home (Next.js App Router)
 
-## Getting Started
+Single full-stack Next.js app built with:
+- TypeScript
+- Tailwind CSS
+- Prisma
+- Postgres
+- App Router + Server Components by default
 
-First, run the development server:
+## Routes
+- `/login`
+- `/dashboard`
+- `/membergpt`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Core Behavior
+- Credentials-based email/password login for member users.
+- Shared DB models: `User`, `Member`, `Scan`.
+- Seeded with 5 realistic members covering 1, 2, 3+, and 5+ scan histories.
+- Adaptive dashboard experience by scan count:
+  - 1 scan: baseline education (no empty charts)
+  - 2 scans: comparison + deltas
+  - 3+ scans: trend chart over time
+- Placeholder scan upload flow included (PDF parsing intentionally not implemented yet).
+- MemberGPT endpoint is grounded to real scan rows in DB and responds with insufficient-data messaging when needed.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local Setup
+1. Update `.env` with your Postgres connection string.
+2. Install deps:
+   ```bash
+   npm install
+   ```
+3. Push schema to Postgres:
+   ```bash
+   npm run db:push
+   ```
+4. Seed demo data:
+   ```bash
+   npm run db:seed
+   ```
+5. Start the app:
+   ```bash
+   npm run dev
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Demo Credentials
+- Any seeded member email from `prisma/seed.ts`
+- Password for all seeded members: `kalos-demo-123`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Architecture Notes
+- Server Components are the default for pages and data loading.
+- Client Components are only used where browser interactivity is required:
+  - Login form (`useActionState`)
+  - Upload placeholder form (`useActionState`)
+  - MemberGPT chat UI (`fetch` + local state)
+  - Recharts trend chart rendering
+- Auth uses signed HTTP-only cookie sessions (`jose` + `next/headers` async cookies API).
+- Server Actions handle login/logout/upload placeholder mutations.
+- `app/api/membergpt/route.ts` validates input with Zod and only answers from DB scan records.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
