@@ -1,55 +1,55 @@
 # Kalos Take-Home Submission
 
-## Overview
-This project is a small full-stack member portal for coaches reviewing body-composition scan history.
+## Project Overview
+This is a full-stack Next.js member dashboard for DEXA scan review.
 
-Core user flows:
-- Member login via email/password
-- Member dashboard with scan-history-aware UI (baseline, comparison, and trend modes)
-- Coach-facing `MemberGPT` chat endpoint grounded to database scan records
-- Placeholder scan upload form (intake only; no PDF parsing pipeline yet)
+Primary goals implemented:
+- Member login with seeded demo accounts
+- Adaptive dashboard experiences for 1, 2, and 3+ scans
+- Deterministic, grounded MemberGPT over database scan records
+- Real server-side DEXA PDF parsing for the provided Kalos sample format
+- Upload-to-persistence flow that immediately updates the dashboard
 
 ## Tech Stack
-- Next.js 16 App Router
+- Next.js 16 (App Router)
 - React 19 + TypeScript
 - Tailwind CSS 4
 - Prisma ORM 7 + PostgreSQL
 - `jose` for signed cookie sessions
-- `zod` for request/form validation
-- `recharts` for 3+ scan trend visualization
+- `zod` for validation
+- `recharts` for trends
+- `pdf-parse` (Node/server-side text extraction only)
 
 ## Architecture Summary
-- App routes:
+- Routes:
   - `/login`
   - `/dashboard`
   - `/membergpt`
-- Server Components are used by default for page-level data loading.
-- Client Components are used only for interactive elements:
-  - login form (`useActionState`)
-  - scan upload form (`useActionState`)
-  - MemberGPT chat UI (`fetch` + local state)
-  - trend chart rendering
-- Auth model:
-  - login action validates credentials against `User`
-  - session is a signed HTTP-only cookie
-  - dashboard access requires a valid session with `memberId`
+  - `POST /api/membergpt`
 - Data model:
   - `User` (auth identity)
-  - `Member` (profile and goal summary)
+  - `Member` (profile)
   - `Scan` (time-series body composition metrics)
+- Dashboard and auth are server-driven (Server Components + Server Actions).
+- MemberGPT is deterministic pattern matching over Prisma-loaded member/scan records.
+- PDF parser logic is isolated in `lib/scan-upload-parser.ts`.
+
+## Public Links (Fill Before Submission)
+- Deployed app URL: `https://<your-deployment-url>`
+- Public GitHub repo URL: `https://github.com/<your-username>/<your-repo>`
 
 ## Local Setup
 1. Install dependencies:
 ```bash
 npm install
 ```
-2. Copy env template and fill values:
+2. Copy env template:
 ```bash
 cp .env.example .env
-# PowerShell alternative:
+# PowerShell
 Copy-Item .env.example .env
 ```
-3. Push Prisma schema to your Postgres DB:
+3. Push Prisma schema:
 ```bash
 npm run db:push
 ```
@@ -57,7 +57,7 @@ npm run db:push
 ```bash
 npm run db:seed
 ```
-5. Start development server:
+5. Run app:
 ```bash
 npm run dev
 ```
@@ -65,17 +65,13 @@ npm run dev
 
 ## Environment Variables
 Required:
-- `DATABASE_URL`: PostgreSQL connection string
-- `AUTH_SECRET`: long random string used to sign session tokens
-
-Notes:
-- Keep `AUTH_SECRET` stable per environment so existing sessions stay valid.
-- This repo does not currently require an LLM provider key at runtime.
+- `DATABASE_URL` - PostgreSQL connection string
+- `AUTH_SECRET` - long random session-signing secret
 
 ## Database Setup
 - Provider: PostgreSQL
-- ORM: Prisma (schema in `prisma/schema.prisma`)
-- Schema application:
+- Prisma schema: `prisma/schema.prisma`
+- Apply schema:
 ```bash
 npm run db:push
 ```
@@ -86,68 +82,75 @@ npm run db:seed
 ```
 
 Seed behavior:
-- Clears existing `Scan`, `User`, and `Member` rows
-- Inserts 5 demo members with varied scan history depths (1, 2, 3, 4, 6 scans)
-- Creates corresponding member users with shared demo password
+- Deletes and recreates demo `Scan`, `User`, and `Member` data
+- Seeds 5 members with 1, 2, 3+, and 5+ scan histories
+- Password for all seeded users: `kalos-demo-123`
 
-## Demo Credentials (Placeholder)
-Replace this section with reviewer-specific credentials before final submission if needed.
+## Demo Credentials By Dashboard Persona
+Password for all: `kalos-demo-123`
 
-Current local seed default:
-- Email: any seeded email in `prisma/seed.ts` (example: `ariana@kalos-demo.com`)
-- Password: `kalos-demo-123`
-- Suggested demo walkthrough accounts:
-  - `ariana@kalos-demo.com` for 1-scan baseline education
-  - `marcus@kalos-demo.com` for 2-scan comparison and lean-mass tradeoff discussion
-  - `sarah@kalos-demo.com` for 3+ scan trend narrative
+- 1 scan baseline persona:
+  - `ariana@kalos-demo.com`
+- 2 scan first-comparison persona:
+  - `marcus@kalos-demo.com`
+- 3+ scan trend persona:
+  - `ethan@kalos-demo.com` (3 scans)
+  - `nina@kalos-demo.com` (4 scans)
+- 5+ scan long-trend persona:
+  - `sarah@kalos-demo.com` (6 scans)
+
+## Reviewer Walkthrough (Suggested Demo Flow)
+1. Log in with a persona account (start with `ariana@kalos-demo.com`).
+2. Review dashboard behavior for that persona (1-scan baseline experience).
+3. Switch to `marcus@kalos-demo.com` to show 2-scan deltas and directionality.
+4. Switch to `sarah@kalos-demo.com` to show 3+/long-range narrative + charts.
+5. On dashboard, upload the sample PDF (`01_DEXA.pdf`).
+6. Confirm success message and that scan data appears immediately.
+7. Open MemberGPT and run starter prompts plus custom named/cross-member questions.
 
 ## MemberGPT Grounding Approach
 - Endpoint: `POST /api/membergpt`
-- Request validated by Zod (`memberGptQuestionSchema`)
-- Data source is strictly Prisma query results from `Member` + related `Scan` rows
-- No external retrieval or vector store
-- Response logic is deterministic pattern matching over DB-backed data
-- If data is missing/insufficient, the API returns an explicit limitation message
-- Supported question patterns currently include:
-  - count members by minimum scan threshold (for example, `3+ scans`)
-  - members who lost lean mass between last two scans
-  - members who improved body fat percentage between last two scans
-  - named-member body-fat trend over the last 6 months
-  - named-member coaching summary/focus from last-two-scan deltas
+- Input validated with Zod
+- Data source is Prisma query results only (`Member` + `Scan` rows)
+- No external retrieval, vector store, or model calls
+- Output is deterministic pattern-based analysis with explicit insufficient-data handling
 
-## Upload/Parsing Status
-- Upload form exists on `/dashboard` and validates date/file metadata.
-- Server-side parse boundary is isolated in `lib/scan-upload-parser.ts`.
-- Current status:
-  - deterministic PDF text parsing is implemented for the provided Kalos sample DEXA format
-  - parser anchors include:
-    - `Scan Date:`
-    - `Total` row inside `Body Composition Results`
-    - `Est. VAT Mass (g)`
-    - `BMI =`
-  - unsupported format handling is implemented (non-PDF uploads are rejected)
-  - upload hardening is in place (empty file, oversized file, invalid PDF header checks)
-  - parse outcomes are explicit: success, unsupported format, parse failure, invalid extracted values
-  - successful parses are persisted to `Scan` and immediately reflected on `/dashboard`
-- Not implemented intentionally:
-  - generalized support for arbitrary DEXA vendor layouts
-  - uploaded file storage lifecycle beyond in-memory parsing
+## Supported MemberGPT Example Questions
+- "How many members have had 3+ scans?"
+- "Which members have lost lean mass between their last two scans?"
+- "Which members improved body fat percentage between their last two scans?"
+- "How has Sarah's body fat percentage trended over the last 6 months?"
+- "Give me a coaching summary for Marcus's next session."
+
+## PDF Upload/Parsing Behavior
+- Upload expects a PDF and parses server-side text (no OCR).
+- Parser is optimized for the provided Kalos sample layout and key anchors:
+  - `Scan Date:`
+  - `Body Composition Results` -> `Total` row
+  - `Est. VAT Mass (g)`
+  - `BMI =`
+- Outcomes:
+  - `success` (scan parsed and persisted)
+  - `unsupported_format` (non-PDF, empty file, oversized file, invalid header)
+  - `parse_failure` (required fields missing/unreadable)
+  - `invalid_values` (extracted but failed numeric/consistency validation)
+- Duplicate behavior:
+  - Uploading another scan for the same member and same calendar date updates existing scan data.
 
 ## Assumptions
-- Single-role usage in this take-home scope (`member` role logins).
-- Seed data is acceptable for demo/review and not production PHI.
-- Reviewer prioritizes architecture clarity and tradeoff communication over feature breadth.
+- Scope prioritizes take-home clarity over production breadth.
+- Single user role (`member`) is sufficient for this submission.
+- Parser reliability is targeted at the provided sample PDF format first.
+- Seeded data is synthetic and demo-safe.
 
 ## Limitations
-- No production-grade authorization layers beyond session + role checks.
-- Parser is currently tuned to the provided Kalos sample PDF layout and anchor text.
-- MemberGPT supports a constrained set of question patterns.
-- No automated test suite is included yet.
-- No audit trail, rate limiting, or observability instrumentation.
+- Parser is not generalized to arbitrary DEXA vendor templates.
+- MemberGPT supports a constrained deterministic question set.
+- No automated test suite yet.
+- No production observability/rate-limiting/audit stack.
 
 ## Next Steps
-- Implement upload pipeline: secure file storage + PDF parsing + structured scan ingestion.
-- Expand MemberGPT query coverage with more robust intent handling and guardrails.
-- Add tests for auth actions, dashboard data scenarios, and MemberGPT responses.
-- Add role-based coach access path separate from member login.
-
+- Add focused tests for parser, upload action, dashboard personas, and MemberGPT analyzers.
+- Broaden parser support to additional real-world DEXA layout variants.
+- Add stronger role/authorization model for coach/admin scenarios.
+- Add operational instrumentation and safer production upload storage lifecycle.

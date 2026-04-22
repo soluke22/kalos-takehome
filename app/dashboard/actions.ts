@@ -21,6 +21,16 @@ function gramsToLbs(grams: number): number {
   return Math.round((grams * 0.00220462) * 1000) / 1000;
 }
 
+function toDayRange(date: Date): { start: Date; end: Date } {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
 export async function uploadScanAction(
   _previousState: UploadFormState,
   formData: FormData,
@@ -75,12 +85,20 @@ export async function uploadScanAction(
   }
 
   const extracted = parseResult.parsed;
+  const parsedDate = extracted.scanDate;
+  const selectedDate = parsedForm.data.scanDate;
+  const dateMismatch = selectedDate.toDateString() !== parsedDate.toDateString();
+  const { start, end } = toDayRange(parsedDate);
 
+  let savedAsUpdate = false;
   try {
     const existingScan = await prisma.scan.findFirst({
       where: {
         memberId: session.memberId,
-        scanDate: extracted.scanDate,
+        scanDate: {
+          gte: start,
+          lte: end,
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -104,6 +122,7 @@ export async function uploadScanAction(
     };
 
     if (existingScan) {
+      savedAsUpdate = true;
       await prisma.scan.update({
         where: { id: existingScan.id },
         data: scanPayload,
@@ -124,13 +143,14 @@ export async function uploadScanAction(
 
   revalidatePath('/dashboard');
 
-  const selectedDate = parsedForm.data.scanDate;
-  const parsedDate = extracted.scanDate;
-  const dateMismatch = selectedDate.toDateString() !== parsedDate.toDateString();
+  const saveOutcome = savedAsUpdate
+    ? 'Existing same-date scan was updated'
+    : 'New scan was created';
+  const dateNote = dateMismatch
+    ? ` Parsed date ${parsedDate.toDateString()} differed from form date ${selectedDate.toDateString()}.`
+    : '';
 
   return {
-    message: dateMismatch
-      ? `Scan saved from ${extracted.sourceFileName} for ${parsedDate.toDateString()} (note: upload form date was ${selectedDate.toDateString()}).`
-      : `Scan parsed and saved from ${extracted.sourceFileName} for ${parsedDate.toDateString()}.`,
+    message: `${saveOutcome} from ${extracted.sourceFileName} for ${parsedDate.toDateString()}.${dateNote}`,
   };
 }

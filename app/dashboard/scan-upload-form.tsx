@@ -18,7 +18,7 @@ export function ScanUploadForm() {
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
           <label htmlFor="scanDate" className="text-sm font-medium text-slate-700">
-            Scan date
+            Scan date (for verification)
           </label>
           <input
             id="scanDate"
