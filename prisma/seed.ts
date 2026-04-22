@@ -259,6 +259,7 @@ async function main() {
         leanMassLbs: scan.leanMassLbs,
         fatMassLbs: scan.fatMassLbs,
         visceralFatLbs: scan.visceralFatLbs,
+        visceralFatGrams: Math.round(scan.visceralFatLbs / 0.00220462),
         bmr: scan.bmr,
         sourceFileName: scan.sourceFileName,
       })),

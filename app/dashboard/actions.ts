@@ -1,7 +1,9 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { clearSession } from '@/lib/auth';
+import { clearSession, getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { uploadScanFormSchema } from '@/lib/validation';
 import { parseUploadedScanFile } from '@/lib/scan-upload-parser';
 
@@ -15,25 +17,34 @@ export async function logoutAction(): Promise<void> {
   redirect('/login');
 }
 
+function gramsToLbs(grams: number): number {
+  return Math.round((grams * 0.00220462) * 1000) / 1000;
+}
+
 export async function uploadScanAction(
   _previousState: UploadFormState,
   formData: FormData,
 ): Promise<UploadFormState> {
+  const session = await getSession();
+  if (!session) {
+    return { error: 'Your session expired. Please sign in again.' };
+  }
+
   const scanDate = formData.get('scanDate');
   const notes = formData.get('notes');
   const file = formData.get('scanFile');
 
   const fileName = file instanceof File ? file.name : '';
 
-  const parsed = uploadScanFormSchema.safeParse({
+  const parsedForm = uploadScanFormSchema.safeParse({
     scanDate,
     notes,
     fileName,
   });
 
-  if (!parsed.success) {
+  if (!parsedForm.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? 'Upload request is invalid.',
+      error: parsedForm.error.issues[0]?.message ?? 'Upload request is invalid.',
     };
   }
 
@@ -51,14 +62,75 @@ export async function uploadScanAction(
     };
   }
 
-  if (parseResult.status === 'parse_failure') {
+  if (parseResult.status === 'invalid_values') {
     return {
-      error: `Upload received for ${parsed.data.fileName}, but parsing failed. ${parseResult.message}`,
+      error: `The file was read, but extracted values were invalid. ${parseResult.message}`,
     };
   }
 
+  if (parseResult.status === 'parse_failure') {
+    return {
+      error: `Upload received for ${parsedForm.data.fileName}, but parsing failed. ${parseResult.message}`,
+    };
+  }
+
+  const extracted = parseResult.parsed;
+
+  try {
+    const existingScan = await prisma.scan.findFirst({
+      where: {
+        memberId: session.memberId,
+        scanDate: extracted.scanDate,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: { id: true },
+    });
+
+    const scanPayload = {
+      scanDate: extracted.scanDate,
+      weightLbs: extracted.weightLbs,
+      bodyFatPct: extracted.bodyFatPct,
+      fatMassLbs: extracted.fatMassLbs,
+      leanMassLbs: extracted.leanMassLbs,
+      visceralFatLbs: gramsToLbs(extracted.visceralFatGrams),
+      visceralFatGrams: extracted.visceralFatGrams,
+      bmi: extracted.bmi,
+      androidGynoidRatio: extracted.androidGynoidRatio,
+      leanHeightIndex: extracted.leanHeightIndex,
+      appendicularLeanHeightIndex: extracted.appendicularLeanHeightIndex,
+      sourceFileName: extracted.sourceFileName,
+    };
+
+    if (existingScan) {
+      await prisma.scan.update({
+        where: { id: existingScan.id },
+        data: scanPayload,
+      });
+    } else {
+      await prisma.scan.create({
+        data: {
+          memberId: session.memberId,
+          ...scanPayload,
+        },
+      });
+    }
+  } catch {
+    return {
+      error: 'The PDF was parsed, but saving the scan failed. Please try again.',
+    };
+  }
+
+  revalidatePath('/dashboard');
+
+  const selectedDate = parsedForm.data.scanDate;
+  const parsedDate = extracted.scanDate;
+  const dateMismatch = selectedDate.toDateString() !== parsedDate.toDateString();
+
   return {
-    message: `Upload and parse succeeded for ${parseResult.parsed.sourceFileName} (${parsed.data.scanDate.toDateString()}). Parser output is ready for persistence wiring.`,
+    message: dateMismatch
+      ? `Scan saved from ${extracted.sourceFileName} for ${parsedDate.toDateString()} (note: upload form date was ${selectedDate.toDateString()}).`
+      : `Scan parsed and saved from ${extracted.sourceFileName} for ${parsedDate.toDateString()}.`,
   };
 }
-

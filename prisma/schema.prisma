@@ -36,6 +36,11 @@ model Scan {
   leanMassLbs    Float
   fatMassLbs     Float
   visceralFatLbs Float?
+  visceralFatGrams Int?
+  bmi            Float?
+  androidGynoidRatio Float?
+  leanHeightIndex Float?
+  appendicularLeanHeightIndex Float?
   bmr            Int?
   sourceFileName String?
   createdAt      DateTime @default(now())

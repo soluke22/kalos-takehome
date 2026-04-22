@@ -119,14 +119,19 @@ Current local seed default:
 - Upload form exists on `/dashboard` and validates date/file metadata.
 - Server-side parse boundary is isolated in `lib/scan-upload-parser.ts`.
 - Current status:
+  - deterministic PDF text parsing is implemented for the provided Kalos sample DEXA format
+  - parser anchors include:
+    - `Scan Date:`
+    - `Total` row inside `Body Composition Results`
+    - `Est. VAT Mass (g)`
+    - `BMI =`
   - unsupported format handling is implemented (non-PDF uploads are rejected)
-  - basic upload hardening is in place (empty file, oversized file, and invalid PDF header checks)
-  - valid PDF flow calls a dedicated parser entrypoint
-  - parse success and parse failure response paths are implemented in the upload action
+  - upload hardening is in place (empty file, oversized file, invalid PDF header checks)
+  - parse outcomes are explicit: success, unsupported format, parse failure, invalid extracted values
+  - successful parses are persisted to `Scan` and immediately reflected on `/dashboard`
 - Not implemented intentionally:
-  - production PDF parser logic inside `parsePdfScanDocument` in `lib/scan-upload-parser.ts`
-  - parsed scan persistence into the database
-  - uploaded file storage lifecycle
+  - generalized support for arbitrary DEXA vendor layouts
+  - uploaded file storage lifecycle beyond in-memory parsing
 
 ## Assumptions
 - Single-role usage in this take-home scope (`member` role logins).
@@ -135,7 +140,7 @@ Current local seed default:
 
 ## Limitations
 - No production-grade authorization layers beyond session + role checks.
-- No file storage/parsing pipeline for uploaded scan PDFs.
+- Parser is currently tuned to the provided Kalos sample PDF layout and anchor text.
 - MemberGPT supports a constrained set of question patterns.
 - No automated test suite is included yet.
 - No audit trail, rate limiting, or observability instrumentation.
