@@ -34,10 +34,6 @@ Primary goals implemented:
 - MemberGPT is deterministic pattern matching over Prisma-loaded member/scan records.
 - PDF parser logic is isolated in `lib/scan-upload-parser.ts`.
 
-## Public Links (Fill Before Submission)
-- Deployed app URL: `https://<your-deployment-url>`
-- Public GitHub repo URL: `https://github.com/<your-username>/<your-repo>`
-
 ## Local Setup
 1. Install dependencies:
 ```bash
