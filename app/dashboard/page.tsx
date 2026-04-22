@@ -154,21 +154,22 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  let member;
-  try {
-    member = await prisma.member.findUnique({
-      where: { id: session.memberId },
-      include: {
-        scans: {
-          orderBy: {
-            scanDate: 'asc',
+  const member = await (async () => {
+    try {
+      return await prisma.member.findUnique({
+        where: { id: session.memberId },
+        include: {
+          scans: {
+            orderBy: {
+              scanDate: 'asc',
+            },
           },
         },
-      },
-    });
-  } catch {
-    throw new Error('Failed to load dashboard data. Please refresh and try again.');
-  }
+      });
+    } catch {
+      throw new Error('Failed to load dashboard data. Please refresh and try again.');
+    }
+  })();
 
   if (!member) {
     redirect('/login');

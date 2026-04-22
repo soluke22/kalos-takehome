@@ -11,7 +11,15 @@ type SessionPayload = {
   role: string;
 };
 
-const secretValue = process.env.AUTH_SECRET ?? 'replace-me-in-env';
+const secretValue = process.env.AUTH_SECRET;
+if (!secretValue) {
+  throw new Error('Missing required environment variable: AUTH_SECRET');
+}
+
+if (process.env.NODE_ENV === 'production' && secretValue === 'replace-this-with-a-long-random-string') {
+  throw new Error('AUTH_SECRET must be set to a secure random value in production');
+}
+
 const secret = new TextEncoder().encode(secretValue);
 
 export async function createSession(payload: SessionPayload): Promise<void> {
