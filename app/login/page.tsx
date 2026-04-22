@@ -21,6 +21,12 @@ export default async function LoginPage() {
 
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
         Demo password for all seeded members: <span className="font-semibold">kalos-demo-123</span>
+        <p className="mt-2 font-medium">Quick demo emails:</p>
+        <ul className="mt-1 list-disc space-y-0.5 pl-5">
+          <li>ariana@kalos-demo.com (1 scan baseline)</li>
+          <li>marcus@kalos-demo.com (2 scan comparison)</li>
+          <li>sarah@kalos-demo.com (6 scan trend)</li>
+        </ul>
       </div>
     </main>
   );

@@ -1,12 +1,12 @@
 'use client';
 
 import { useActionState } from 'react';
-import { uploadScanPlaceholderAction, type UploadFormState } from '@/app/dashboard/actions';
+import { uploadScanAction, type UploadFormState } from '@/app/dashboard/actions';
 
 const initialState: UploadFormState = {};
 
 export function ScanUploadForm() {
-  const [state, action, pending] = useActionState(uploadScanPlaceholderAction, initialState);
+  const [state, action, pending] = useActionState(uploadScanAction, initialState);
 
   return (
     <form action={action} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

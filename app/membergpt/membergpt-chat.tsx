@@ -10,7 +10,9 @@ type ChatMessage = {
 const starterPrompts = [
   'How many members have had 3+ scans?',
   'Which members have lost lean mass between their last two scans?',
+  'Which members improved body fat percentage between their last two scans?',
   "How has Sarah's body fat percentage trended over the last 6 months?",
+  "Give me a coaching summary for Marcus's next session.",
 ];
 
 export function MemberGptChat() {

@@ -26,7 +26,7 @@ Core user flows:
 - Server Components are used by default for page-level data loading.
 - Client Components are used only for interactive elements:
   - login form (`useActionState`)
-  - scan upload placeholder form (`useActionState`)
+  - scan upload form (`useActionState`)
   - MemberGPT chat UI (`fetch` + local state)
   - trend chart rendering
 - Auth model:
@@ -96,6 +96,10 @@ Replace this section with reviewer-specific credentials before final submission 
 Current local seed default:
 - Email: any seeded email in `prisma/seed.ts` (example: `ariana@kalos-demo.com`)
 - Password: `kalos-demo-123`
+- Suggested demo walkthrough accounts:
+  - `ariana@kalos-demo.com` for 1-scan baseline education
+  - `marcus@kalos-demo.com` for 2-scan comparison and lean-mass tradeoff discussion
+  - `sarah@kalos-demo.com` for 3+ scan trend narrative
 
 ## MemberGPT Grounding Approach
 - Endpoint: `POST /api/membergpt`
@@ -104,14 +108,25 @@ Current local seed default:
 - No external retrieval or vector store
 - Response logic is deterministic pattern matching over DB-backed data
 - If data is missing/insufficient, the API returns an explicit limitation message
+- Supported question patterns currently include:
+  - count members by minimum scan threshold (for example, `3+ scans`)
+  - members who lost lean mass between last two scans
+  - members who improved body fat percentage between last two scans
+  - named-member body-fat trend over the last 6 months
+  - named-member coaching summary/focus from last-two-scan deltas
 
 ## Upload/Parsing Status
 - Upload form exists on `/dashboard` and validates date/file metadata.
-- Current status: placeholder intake only.
+- Server-side parse boundary is isolated in `lib/scan-upload-parser.ts`.
+- Current status:
+  - unsupported format handling is implemented (non-PDF uploads are rejected)
+  - basic upload hardening is in place (empty file, oversized file, and invalid PDF header checks)
+  - valid PDF flow calls a dedicated parser entrypoint
+  - parse success and parse failure response paths are implemented in the upload action
 - Not implemented intentionally:
-  - file persistence
-  - PDF extraction
-  - scan metric parsing and DB writeback from uploaded files
+  - production PDF parser logic inside `parsePdfScanDocument` in `lib/scan-upload-parser.ts`
+  - parsed scan persistence into the database
+  - uploaded file storage lifecycle
 
 ## Assumptions
 - Single-role usage in this take-home scope (`member` role logins).

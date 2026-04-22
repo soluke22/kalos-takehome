@@ -21,6 +21,11 @@ type LeanMassLossResult = {
   memberNames: string[];
 };
 
+type BodyFatImprovedResult = {
+  kind: 'members_improved_body_fat_last_two';
+  memberNames: string[];
+};
+
 type NamedBodyFatTrendResult = {
   kind: 'named_member_body_fat_trend';
   memberName: string;
@@ -54,6 +59,7 @@ type UnsupportedQuestionResult = {
 type AnalysisResult =
   | CountMembersResult
   | LeanMassLossResult
+  | BodyFatImprovedResult
   | NamedBodyFatTrendResult
   | NamedCoachingFocusResult
   | InsufficientDataResult
@@ -143,6 +149,37 @@ function analyzeLeanMassLossLastTwo(question: string, members: MemberWithScans[]
   };
 }
 
+function analyzeBodyFatImprovedLastTwo(question: string, members: MemberWithScans[]): AnalysisResult | null {
+  const normalized = normalizeText(question);
+
+  const asksBodyFatImprovement =
+    normalized.includes('body fat') &&
+    (normalized.includes('improved') ||
+      normalized.includes('lower') ||
+      normalized.includes('decrease') ||
+      normalized.includes('down') ||
+      normalized.includes('reduced'));
+
+  if (!asksBodyFatImprovement) {
+    return null;
+  }
+
+  const matchingMembers = members.filter((member) => {
+    if (member.scans.length < 2) {
+      return false;
+    }
+
+    const latest = member.scans[member.scans.length - 1];
+    const previous = member.scans[member.scans.length - 2];
+    return latest.bodyFatPct < previous.bodyFatPct;
+  });
+
+  return {
+    kind: 'members_improved_body_fat_last_two',
+    memberNames: matchingMembers.map((member) => member.name),
+  };
+}
+
 function analyzeNamedBodyFatTrend(question: string, members: MemberWithScans[]): AnalysisResult | null {
   const normalized = normalizeText(question);
   const asksBodyFatTrend =
@@ -194,7 +231,9 @@ function analyzeNamedCoachingFocus(question: string, members: MemberWithScans[])
   const asksCoachingFocus =
     normalized.includes('focus on') ||
     normalized.includes('next coaching session') ||
-    normalized.includes('coaching session');
+    normalized.includes('coaching session') ||
+    (normalized.includes('summary') && normalized.includes('progress')) ||
+    (normalized.includes('how is') && normalized.includes('doing'));
 
   if (!asksCoachingFocus) {
     return null;
@@ -270,6 +309,7 @@ export function analyzeCoachQuestion(question: string, members: MemberWithScans[
   const analyzers = [
     analyzeCountMembersByScanThreshold,
     analyzeLeanMassLossLastTwo,
+    analyzeBodyFatImprovedLastTwo,
     analyzeNamedBodyFatTrend,
     analyzeNamedCoachingFocus,
   ];
@@ -298,6 +338,14 @@ export function summarizeAnalysisResult(result: AnalysisResult): string {
     return `Members who lost lean mass between their last two scans: ${result.memberNames.join(', ')}.`;
   }
 
+  if (result.kind === 'members_improved_body_fat_last_two') {
+    if (result.memberNames.length === 0) {
+      return 'No members in the database improved body fat percentage between their last two scans.';
+    }
+
+    return `Members who improved body fat percentage between their last two scans: ${result.memberNames.join(', ')}.`;
+  }
+
   if (result.kind === 'named_member_body_fat_trend') {
     return [
       `${result.memberName} body fat trend over the last 6 months:`,
@@ -318,7 +366,7 @@ export function summarizeAnalysisResult(result: AnalysisResult): string {
     return `I cannot answer that from the available database data: ${result.reason}`;
   }
 
-  return 'I cannot answer that from the current database-only retrieval rules. I can currently answer: member scan-count totals, lean-mass-loss cohort checks, named-member body-fat trends over the last 6 months, and named-member coaching focus from last-two-scan deltas.';
+  return 'I cannot answer that from the current database-only retrieval rules. I can currently answer: member scan-count totals, lean-mass-loss cohort checks, body-fat-improvement cohort checks, named-member body-fat trends over the last 6 months, and named-member coaching summary/focus from last-two-scan deltas.';
 }
 
 export function answerCoachQuestion(question: string, members: MemberWithScans[]): string {

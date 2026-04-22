@@ -1,4 +1,4 @@
-﻿import { MemberGptChat } from '@/app/membergpt/membergpt-chat';
+import { MemberGptChat } from '@/app/membergpt/membergpt-chat';
 
 export default function MemberGptPage() {
   return (

@@ -4,28 +4,35 @@ import { memberGptQuestionSchema } from '@/lib/validation';
 import { answerCoachQuestion } from '@/lib/membergpt';
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null);
-  const parsed = memberGptQuestionSchema.safeParse(body);
+  try {
+    const body = await request.json().catch(() => null);
+    const parsed = memberGptQuestionSchema.safeParse(body);
 
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? 'Invalid request.' },
-      { status: 400 },
-    );
-  }
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Invalid request.' },
+        { status: 400 },
+      );
+    }
 
-  const members = await prisma.member.findMany({
-    include: {
-      scans: {
-        orderBy: {
-          scanDate: 'asc',
+    const members = await prisma.member.findMany({
+      include: {
+        scans: {
+          orderBy: {
+            scanDate: 'asc',
+          },
         },
       },
-    },
-  });
+    });
 
-  const answer = answerCoachQuestion(parsed.data.question, members);
+    const answer = answerCoachQuestion(parsed.data.question, members);
 
-  return NextResponse.json({ answer });
+    return NextResponse.json({ answer });
+  } catch {
+    return NextResponse.json(
+      { error: 'MemberGPT could not load scan data right now. Please try again.' },
+      { status: 500 },
+    );
+  }
 }
 

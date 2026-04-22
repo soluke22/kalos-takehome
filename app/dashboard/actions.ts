@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { clearSession } from '@/lib/auth';
-import { uploadPlaceholderSchema } from '@/lib/validation';
+import { uploadScanFormSchema } from '@/lib/validation';
+import { parseUploadedScanFile } from '@/lib/scan-upload-parser';
 
 export type UploadFormState = {
   message?: string;
@@ -14,7 +15,7 @@ export async function logoutAction(): Promise<void> {
   redirect('/login');
 }
 
-export async function uploadScanPlaceholderAction(
+export async function uploadScanAction(
   _previousState: UploadFormState,
   formData: FormData,
 ): Promise<UploadFormState> {
@@ -24,7 +25,7 @@ export async function uploadScanPlaceholderAction(
 
   const fileName = file instanceof File ? file.name : '';
 
-  const parsed = uploadPlaceholderSchema.safeParse({
+  const parsed = uploadScanFormSchema.safeParse({
     scanDate,
     notes,
     fileName,
@@ -36,8 +37,28 @@ export async function uploadScanPlaceholderAction(
     };
   }
 
+  if (!(file instanceof File)) {
+    return {
+      error: 'Please select a file to upload.',
+    };
+  }
+
+  const parseResult = await parseUploadedScanFile(file);
+
+  if (parseResult.status === 'unsupported_format') {
+    return {
+      error: parseResult.message,
+    };
+  }
+
+  if (parseResult.status === 'parse_failure') {
+    return {
+      error: `Upload received for ${parsed.data.fileName}, but parsing failed. ${parseResult.message}`,
+    };
+  }
+
   return {
-    message: `Upload received for ${parsed.data.fileName} (${parsed.data.scanDate.toDateString()}). PDF parsing is intentionally not implemented yet.`,
+    message: `Upload and parse succeeded for ${parseResult.parsed.sourceFileName} (${parsed.data.scanDate.toDateString()}). Parser output is ready for persistence wiring.`,
   };
 }
 

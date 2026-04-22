@@ -5,7 +5,7 @@ export const loginSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters.').max(100),
 });
 
-export const uploadPlaceholderSchema = z.object({
+export const uploadScanFormSchema = z.object({
   scanDate: z.coerce.date({
     error: 'Please choose a scan date.',
   }),
