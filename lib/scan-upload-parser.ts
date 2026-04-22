@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { Buffer } from 'node:buffer';
-import { PDFParse } from 'pdf-parse';
 
 export type ParsedScanDocument = {
   sourceFileName: string;
@@ -212,14 +211,10 @@ export async function parseUploadedScanFile(file: File): Promise<ScanUploadParse
 }
 
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
-  const parser = new PDFParse({ data: Buffer.from(bytes) });
-
-  try {
-    const result = await parser.getText();
-    return result.text;
-  } finally {
-    await parser.destroy();
-  }
+  const pdfParseModule = await import('pdf-parse/lib/pdf-parse.js');
+  const pdfParse = pdfParseModule.default as (buffer: Buffer) => Promise<{ text: string }>;
+  const result = await pdfParse(Buffer.from(bytes));
+  return result.text ?? '';
 }
 
 function normalizeText(text: string): string {
