@@ -1,59 +1,133 @@
-# Kalos Take-Home (Next.js App Router)
+# Kalos Take-Home Submission
 
-Single full-stack Next.js app built with:
-- TypeScript
-- Tailwind CSS
-- Prisma
-- Postgres
-- App Router + Server Components by default
+## Overview
+This project is a small full-stack member portal for coaches reviewing body-composition scan history.
 
-## Routes
-- `/login`
-- `/dashboard`
-- `/membergpt`
+Core user flows:
+- Member login via email/password
+- Member dashboard with scan-history-aware UI (baseline, comparison, and trend modes)
+- Coach-facing `MemberGPT` chat endpoint grounded to database scan records
+- Placeholder scan upload form (intake only; no PDF parsing pipeline yet)
 
-## Core Behavior
-- Credentials-based email/password login for member users.
-- Shared DB models: `User`, `Member`, `Scan`.
-- Seeded with 5 realistic members covering 1, 2, 3+, and 5+ scan histories.
-- Adaptive dashboard experience by scan count:
-  - 1 scan: baseline education (no empty charts)
-  - 2 scans: comparison + deltas
-  - 3+ scans: trend chart over time
-- Placeholder scan upload flow included (PDF parsing intentionally not implemented yet).
-- MemberGPT endpoint is grounded to real scan rows in DB and responds with insufficient-data messaging when needed.
+## Tech Stack
+- Next.js 16 App Router
+- React 19 + TypeScript
+- Tailwind CSS 4
+- Prisma ORM 7 + PostgreSQL
+- `jose` for signed cookie sessions
+- `zod` for request/form validation
+- `recharts` for 3+ scan trend visualization
+
+## Architecture Summary
+- App routes:
+  - `/login`
+  - `/dashboard`
+  - `/membergpt`
+- Server Components are used by default for page-level data loading.
+- Client Components are used only for interactive elements:
+  - login form (`useActionState`)
+  - scan upload placeholder form (`useActionState`)
+  - MemberGPT chat UI (`fetch` + local state)
+  - trend chart rendering
+- Auth model:
+  - login action validates credentials against `User`
+  - session is a signed HTTP-only cookie
+  - dashboard access requires a valid session with `memberId`
+- Data model:
+  - `User` (auth identity)
+  - `Member` (profile and goal summary)
+  - `Scan` (time-series body composition metrics)
 
 ## Local Setup
-1. Update `.env` with your Postgres connection string.
-2. Install deps:
-   ```bash
-   npm install
-   ```
-3. Push schema to Postgres:
-   ```bash
-   npm run db:push
-   ```
+1. Install dependencies:
+```bash
+npm install
+```
+2. Copy env template and fill values:
+```bash
+cp .env.example .env
+# PowerShell alternative:
+Copy-Item .env.example .env
+```
+3. Push Prisma schema to your Postgres DB:
+```bash
+npm run db:push
+```
 4. Seed demo data:
-   ```bash
-   npm run db:seed
-   ```
-5. Start the app:
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run db:seed
+```
+5. Start development server:
+```bash
+npm run dev
+```
+6. Open [http://localhost:3000](http://localhost:3000)
 
-## Demo Credentials
-- Any seeded member email from `prisma/seed.ts`
-- Password for all seeded members: `kalos-demo-123`
+## Environment Variables
+Required:
+- `DATABASE_URL`: PostgreSQL connection string
+- `AUTH_SECRET`: long random string used to sign session tokens
 
-## Architecture Notes
-- Server Components are the default for pages and data loading.
-- Client Components are only used where browser interactivity is required:
-  - Login form (`useActionState`)
-  - Upload placeholder form (`useActionState`)
-  - MemberGPT chat UI (`fetch` + local state)
-  - Recharts trend chart rendering
-- Auth uses signed HTTP-only cookie sessions (`jose` + `next/headers` async cookies API).
-- Server Actions handle login/logout/upload placeholder mutations.
-- `app/api/membergpt/route.ts` validates input with Zod and only answers from DB scan records.
+Notes:
+- Keep `AUTH_SECRET` stable per environment so existing sessions stay valid.
+- This repo does not currently require an LLM provider key at runtime.
+
+## Database Setup
+- Provider: PostgreSQL
+- ORM: Prisma (schema in `prisma/schema.prisma`)
+- Schema application:
+```bash
+npm run db:push
+```
+
+## Seed Instructions
+```bash
+npm run db:seed
+```
+
+Seed behavior:
+- Clears existing `Scan`, `User`, and `Member` rows
+- Inserts 5 demo members with varied scan history depths (1, 2, 3, 4, 6 scans)
+- Creates corresponding member users with shared demo password
+
+## Demo Credentials (Placeholder)
+Replace this section with reviewer-specific credentials before final submission if needed.
+
+Current local seed default:
+- Email: any seeded email in `prisma/seed.ts` (example: `ariana@kalos-demo.com`)
+- Password: `kalos-demo-123`
+
+## MemberGPT Grounding Approach
+- Endpoint: `POST /api/membergpt`
+- Request validated by Zod (`memberGptQuestionSchema`)
+- Data source is strictly Prisma query results from `Member` + related `Scan` rows
+- No external retrieval or vector store
+- Response logic is deterministic pattern matching over DB-backed data
+- If data is missing/insufficient, the API returns an explicit limitation message
+
+## Upload/Parsing Status
+- Upload form exists on `/dashboard` and validates date/file metadata.
+- Current status: placeholder intake only.
+- Not implemented intentionally:
+  - file persistence
+  - PDF extraction
+  - scan metric parsing and DB writeback from uploaded files
+
+## Assumptions
+- Single-role usage in this take-home scope (`member` role logins).
+- Seed data is acceptable for demo/review and not production PHI.
+- Reviewer prioritizes architecture clarity and tradeoff communication over feature breadth.
+
+## Limitations
+- No production-grade authorization layers beyond session + role checks.
+- No file storage/parsing pipeline for uploaded scan PDFs.
+- MemberGPT supports a constrained set of question patterns.
+- No automated test suite is included yet.
+- No audit trail, rate limiting, or observability instrumentation.
+
+## Next Steps
+- Implement upload pipeline: secure file storage + PDF parsing + structured scan ingestion.
+- Expand MemberGPT query coverage with more robust intent handling and guardrails.
+- Add tests for auth actions, dashboard data scenarios, and MemberGPT responses.
+- Add role-based coach access path separate from member login.
 
